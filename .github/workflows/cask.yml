@@ -1,0 +1,44 @@
+name: Cask
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_AUTOREMOVE: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Homebrew
+        run: |
+          brew update
+          brew tap egeominotti/tap "$GITHUB_WORKSPACE"
+          brew trust --cask egeominotti/tap/agentvm
+      - name: Style and audit
+        run: |
+          brew style Casks/agentvm.rb
+          brew audit --cask --strict egeominotti/tap/agentvm
+      - name: Install and verify the published DMG
+        run: |
+          appdir="$RUNNER_TEMP/agentvm-apps"
+          mkdir -p "$appdir"
+          brew install --cask --no-ask --appdir="$appdir" egeominotti/tap/agentvm
+          app="$appdir/agentvm Native.app"
+          codesign --verify --deep --strict "$app"
+          plutil -lint "$app/Contents/Info.plist"
+          executable=$(/usr/libexec/PlistBuddy -c 'Print:CFBundleExecutable' "$app/Contents/Info.plist")
+          test -x "$app/Contents/MacOS/$executable"
+          for binary in agentvm-server agentvm-vm agentvm-mcp; do
+            test -x "$app/Contents/Resources/runtime/bin/$binary"
+          done
+          brew uninstall --cask egeominotti/tap/agentvm
