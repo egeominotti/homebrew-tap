@@ -18,7 +18,7 @@ jobs:
       HOMEBREW_NO_AUTOREMOVE: "1"
       HOMEBREW_NO_ENV_HINTS: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Prepare Homebrew
         run: |
           brew update
